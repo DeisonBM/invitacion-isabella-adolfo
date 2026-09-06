@@ -23,6 +23,9 @@ function openEnvelope() {
     audio.play().then(() => {
       musicBtn.classList.add('playing');
       musicBtn.innerHTML = ICON_PAUSE;
+      musicBtn.setAttribute('aria-pressed', 'true');
+      musicBtn.setAttribute('title', 'Pausar música');
+      startMusicNotes();
     }).catch(() => {
       musicBtn.innerHTML = ICON_MUSIC;
     });
@@ -41,6 +44,44 @@ document.getElementById('coverEnvelope').addEventListener('keydown', (e) => {
   }
 });
 
+function createMusicNote() {
+  let notes = document.getElementById('musicNotes');
+  if (!notes) {
+    notes = document.createElement('div');
+    notes.id = 'musicNotes';
+    notes.className = 'music-notes';
+    notes.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(notes);
+  }
+
+  const musicButton = document.getElementById('musicBtn');
+  if (musicButton) {
+    const buttonRect = musicButton.getBoundingClientRect();
+    notes.style.left = `${buttonRect.left + buttonRect.width / 2}px`;
+    notes.style.top = `${buttonRect.top + buttonRect.height / 2}px`;
+  }
+
+  const note = document.createElement('span');
+  note.className = 'music-note';
+  note.textContent = ['♪', '♫', '♩'][Math.floor(Math.random() * 3)];
+  note.style.setProperty('--note-x', `${Math.round(Math.random() * 54 - 27)}px`);
+  note.style.setProperty('--note-r', `${Math.round(Math.random() * 36 - 18)}deg`);
+  notes.appendChild(note);
+  note.addEventListener('animationend', () => note.remove(), { once: true });
+}
+
+function startMusicNotes() {
+  createMusicNote();
+  const noteTimer = setInterval(() => {
+    const audio = document.getElementById('music');
+    if (!audio || audio.paused) {
+      clearInterval(noteTimer);
+      return;
+    }
+    createMusicNote();
+  }, 520);
+}
+
 function toggleMusic() {
   const audio = document.getElementById('music');
   const musicBtn = document.getElementById('musicBtn');
@@ -49,6 +90,9 @@ function toggleMusic() {
     audio.play().then(() => {
       musicBtn.innerHTML = ICON_PAUSE;
       musicBtn.classList.add('playing');
+      musicBtn.setAttribute('aria-pressed', 'true');
+      musicBtn.setAttribute('title', 'Pausar música');
+      startMusicNotes();
     }).catch(() => {
       showInlineToast('Por favor interactúa con la pantalla primero para activar la música.');
     });
@@ -56,8 +100,11 @@ function toggleMusic() {
     audio.pause();
     musicBtn.innerHTML = ICON_MUSIC;
     musicBtn.classList.remove('playing');
+    musicBtn.setAttribute('aria-pressed', 'false');
+    musicBtn.setAttribute('title', 'Reproducir música');
   }
 }
+
 
 const urlParams = new URLSearchParams(window.location.search);
 let cups = parseInt(urlParams.get('cupos') || '4', 10);
@@ -124,6 +171,63 @@ function updateCountdown() {
 
 updateCountdown();
 setInterval(updateCountdown, 1000);
+
+function enhanceInvitationFlow() {
+  const pages = [...document.querySelectorAll('.page')];
+  const byBackground = (name) => pages.find((page) => page.querySelector('.page-bg')?.style.backgroundImage.includes(name));
+  const hero = document.getElementById('inicio');
+  const promise = document.getElementById('promesa');
+  const countdown = document.getElementById('fecha');
+  const rsvp = byBackground('foto8.jpg');
+  const place = byBackground('foto2.jpg');
+  const itinerary = pages.find((page) => page.querySelector('.timeline'));
+  const dress = pages.find((page) => page.querySelector('.dress-grid'));
+  const memories = pages.find((page) => page.querySelector('.collage-wrap'));
+  const details = pages.find((page) => page.querySelector('#songSuggestion'));
+  const ordered = [hero, promise, countdown, rsvp, place, itinerary, dress, details, memories].filter(Boolean);
+  ordered.forEach((page) => document.body.appendChild(page));
+
+  const nav = document.createElement('nav');
+  nav.className = 'invitation-nav';
+  nav.setAttribute('aria-label', 'Navegación de la invitación');
+  nav.innerHTML = '<a href="#inicio">Inicio</a><a href="#fecha">Fecha</a><a href="#confirmar">Confirmar</a>';
+  document.body.insertBefore(nav, document.body.firstChild);
+
+  rsvp?.setAttribute('id', 'confirmar');
+  place?.setAttribute('id', 'lugar');
+  itinerary?.setAttribute('id', 'itinerario');
+  dress?.setAttribute('id', 'vestuario');
+  details?.setAttribute('id', 'detalles');
+  memories?.setAttribute('id', 'recuerdos');
+}
+
+enhanceInvitationFlow();
+
+function fitInvitationSections() {
+  document.querySelectorAll('.page').forEach((page) => {
+    const card = page.querySelector('.card');
+    if (!card) return;
+
+    card.classList.remove('page-fit-card');
+    card.style.removeProperty('--page-scale');
+
+    const pageStyles = getComputedStyle(page);
+    const verticalPadding = parseFloat(pageStyles.paddingTop) + parseFloat(pageStyles.paddingBottom);
+    const availableHeight = Math.max(260, window.innerHeight - verticalPadding - 12);
+    const contentHeight = card.scrollHeight;
+    const scale = Math.min(1, availableHeight / contentHeight);
+
+    if (scale < 0.995) {
+      card.classList.add('page-fit-card');
+      card.style.setProperty('--page-scale', scale.toFixed(3));
+    }
+  });
+}
+
+window.addEventListener('resize', fitInvitationSections, { passive: true });
+window.addEventListener('orientationchange', fitInvitationSections, { passive: true });
+window.addEventListener('load', fitInvitationSections, { once: true });
+requestAnimationFrame(fitInvitationSections);
 
 function showInlineToast(text) {
   const toast = document.createElement('div');
